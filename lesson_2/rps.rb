@@ -1,13 +1,17 @@
-CHOICES = ['rock', 'paper', 'scissors']
+CHOICES = %w(rock paper scissors)
 
 def prompt(message)
   puts "=> #{message}"
 end
 
+def win?(first, second)
+  (first == 'rock' && second == 'scissors') ||
+    (first == 'paper' && second == 'rock') ||
+    (first == 'scissors' && second == 'paper')
+end
+
 def display_results(choice, computer_choice)
-  if (choice == 'rock' && computer_choice == 'scissors') ||
-     (choice == 'paper' && computer_choice == 'rock') ||
-     (choice == 'scissors' && computer_choice == 'paper')
+  if win?(choice, computer_choice)
     prompt("You won!")
   elsif choice == computer_choice
     prompt("It's a draw.")
