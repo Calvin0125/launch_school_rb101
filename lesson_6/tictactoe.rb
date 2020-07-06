@@ -50,18 +50,27 @@ def player_turn!(brd)
   brd[square] = PLAYER_MARKER
 end
 
+# Second condition is necessary because the condition would return true if all squares in that 
+# line were taken but two were the PLAYER_MARKER, causing brd.select { |key, _| line.include?(key) }.key(' ')
+# to return nil before iterating through the rest of the lines. This meant the computer would miss defense
+# opportunities and allow the player to win. 
+
 def defense(brd)
   WINNING_LINES.each do |line|
-    if brd.values_at(*line).count(PLAYER_MARKER) == 2
+    if brd.values_at(*line).count(PLAYER_MARKER) == 2 &&
+       brd.values_at(*line).count(INITIAL_MARKER) == 1
       return brd.select { |key, _| line.include?(key) }.key(' ')
     end
   end
   nil
 end
 
+#The previous comment applies for offense method as well. 
+
 def offense(brd)
   WINNING_LINES.each do |line|
-    if brd.values_at(*line).count(COMPUTER_MARKER) == 2
+    if brd.values_at(*line).count(COMPUTER_MARKER) == 2 &&
+       brd.values_at(*line).count(INITIAL_MARKER) == 1
       return brd.select { |key, _| line.include?(key) }.key(' ')
     end
   end
@@ -69,7 +78,6 @@ def offense(brd)
 end
 
 def computer_turn!(brd)
-  binding.pry
   square = if offense(brd)
              offense(brd)
            elsif defense(brd)
@@ -79,7 +87,6 @@ def computer_turn!(brd)
            else
              empty_squares(brd).sample
            end
-  binding.pry
   brd[square] = COMPUTER_MARKER
 end
 
