@@ -34,29 +34,29 @@ def deal_card!(deck)
   deck.shift
 end
 
-def calculate_value(hand)
+def calculate_total(hand)
   non_aces, aces = hand.partition { |card| card != 'A' }
-  value = 0
+  total = 0
   non_aces.each do |card|
-    value += if card.to_i > 0
+    total += if card.to_i > 0
                card.to_i
              else
                10
              end
   end
-  value += calculate_aces(aces, value)
+  total += calculate_aces(aces, total)
 end
 
-def calculate_aces(aces, value)
+def calculate_aces(aces, total)
   return 0 if aces.empty?
 
-  aces_value = if value + 11 + aces.length - 1 > 21
+  aces_total = if total + 11 + aces.length - 1 > 21
                  1
                else
                  11
                end
 
-  aces_value + (aces.length - 1)
+  aces_total + (aces.length - 1)
 end
 
 def play_again?
@@ -74,9 +74,10 @@ def hit_or_stay
   end
 end
 
-def player_turn!(player_hand, deck)
+def player_turn!(player_hand, deck, dealer_hand)
   loop do
     system 'clear'
+    prompt "The dealer has #{CARD_STRINGS[dealer_hand[0]]}."
     show_player_hand(player_hand)
 
     break if hit_or_stay == 's'
@@ -92,13 +93,13 @@ end
 
 def dealer_turn!(dealer_hand, deck)
   loop do
-    break if calculate_value(dealer_hand) > 17 || busted?(dealer_hand)
+    break if calculate_total(dealer_hand) > 17 || busted?(dealer_hand)
     dealer_hand << deal_card!(deck)
   end
 end
 
 def busted?(hand)
-  calculate_value(hand) > 21
+  calculate_total(hand) > 21
 end
 
 def stringify_cards(hand)
@@ -112,13 +113,13 @@ def stringify_cards(hand)
 end
 
 def show_player_hand(player_hand)
-  prompt "You have #{stringify_cards(player_hand)}, for a value of " + \
-         calculate_value(player_hand).to_s.green + '.'
+  prompt "You have #{stringify_cards(player_hand)}, for a total of " + \
+         calculate_total(player_hand).to_s.green + '.'
 end
 
 def show_dealer_hand(dealer_hand)
-  prompt "The dealer had #{stringify_cards(dealer_hand)}, for a value of " + \
-         calculate_value(dealer_hand).to_s.green + '.'
+  prompt "The dealer had #{stringify_cards(dealer_hand)}, for a total of " + \
+         calculate_total(dealer_hand).to_s.green + '.'
 end
 
 def display_results(player_hand, dealer_hand)
@@ -136,9 +137,9 @@ def display_results(player_hand, dealer_hand)
 end
 
 def calculate_winner(player_hand, dealer_hand)
-  if calculate_value(player_hand) > calculate_value(dealer_hand)
+  if calculate_total(player_hand) > calculate_total(dealer_hand)
     'player'
-  elsif calculate_value(dealer_hand) > calculate_value(player_hand)
+  elsif calculate_total(dealer_hand) > calculate_total(player_hand)
     'dealer'
   else
     'tie'
@@ -150,7 +151,7 @@ loop do
 
   player_hand, dealer_hand = deal_hands!(deck)
 
-  player_turn!(player_hand, deck)
+  player_turn!(player_hand, deck, dealer_hand)
   if busted?(player_hand)
     prompt "You busted."
     show_dealer_hand(dealer_hand)
