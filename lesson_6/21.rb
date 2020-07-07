@@ -63,9 +63,16 @@ def calculate_aces(aces, total)
 end
 
 def play_again?
-  prompt "Would you like to play again? ('y' for yes)"
-  answer = gets.chomp
-  answer.downcase == 'y'
+  answer = ''
+
+  loop do
+    prompt "Would you like to play again? ('y' for yes, 'n' for no)"
+    answer = gets.chomp.downcase
+    break if %w(y n).include?(answer)
+    prompt "That's not a valid option."
+  end
+
+  answer == 'y'
 end
 
 def hit_or_stay
@@ -88,7 +95,7 @@ def player_turn!(player_hand, player_total, deck, dealer_hand)
 
     player_total = calculate_total(player_hand)
 
-    if busted?(player_total)
+    if player_total >= MAX_VALUE
       system 'clear'
       show_player_hand(player_hand, player_total)
       sleep 2
