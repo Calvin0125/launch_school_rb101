@@ -75,6 +75,19 @@ def play_again?
   answer == 'y'
 end
 
+def play_another_five?
+  answer = ''
+
+  loop do
+    prompt "Would you like to play another 5 rounds? ('y' for yes, 'n' for no)"
+    answer = gets.chomp.downcase
+    break if %w(y n).include?(answer)
+    prompt "That's not a valid option."
+  end
+
+  answer == 'y'
+end
+
 def hit_or_stay
   loop do
     prompt "Hit or stay? ('h' for hit, 's' for stay)"
@@ -86,21 +99,20 @@ end
 
 def player_turn!(player_hand, player_total, deck, dealer_hand)
   loop do
-    system 'clear'
-    prompt "The dealer has #{CARD_STRINGS[dealer_hand[0]]}."
-    show_player_hand(player_hand, player_total)
-
-    break if hit_or_stay == 's'
-    player_hand << deal_card!(deck)
-
-    player_total = calculate_total(player_hand)
-
     if player_total >= MAX_VALUE
       system 'clear'
       show_player_hand(player_hand, player_total)
       sleep 2
       break
     end
+
+    system 'clear'
+    prompt "The dealer has #{CARD_STRINGS[dealer_hand[0]]} and another card."
+    show_player_hand(player_hand, player_total)
+
+    break if hit_or_stay == 's'
+    player_hand << deal_card!(deck)
+    player_total = calculate_total(player_hand)
   end
 end
 
@@ -140,14 +152,7 @@ def show_dealer_hand(dealer_hand, dealer_total)
          dealer_total.to_s.green + '.'
 end
 
-# Rubocop complained that this method is too long, but it is only doing one
-# thing and I see no way to shorten it.
-def show_results(player_hand, player_total, dealer_hand, dealer_total, result)
-  system 'clear'
-  puts "==============" * 5
-  show_player_hand(player_hand, player_total)
-  show_dealer_hand(dealer_hand, dealer_total)
-
+def display_result_message(result)
   case result
   when 'player busted'
     prompt 'You busted. The dealer won!'
@@ -160,7 +165,14 @@ def show_results(player_hand, player_total, dealer_hand, dealer_total, result)
   when 'tie'
     prompt "It's a tie!"
   end
+end
 
+def show_results(player_hand, player_total, dealer_hand, dealer_total, result)
+  system 'clear'
+  puts "==============" * 5
+  show_player_hand(player_hand, player_total)
+  show_dealer_hand(dealer_hand, dealer_total)
+  display_result_message(result)
   puts "==============" * 5 + "\n\n"
 end
 
@@ -178,47 +190,79 @@ def calculate_winner(player_total, dealer_total)
   end
 end
 
-dealer_score = 0
-player_score = 0
-
-loop do
-  deck = initialize_deck
-
-  player_hand, dealer_hand = deal_hands!(deck)
-
-  player_total = calculate_total(player_hand)
-  dealer_total = calculate_total(dealer_hand)
-
-  player_turn!(player_hand, player_total, deck, dealer_hand)
-  player_total = calculate_total(player_hand)
-
-  unless busted?(player_total)
-    dealer_turn!(dealer_hand, dealer_total, deck)
-    dealer_total = calculate_total(dealer_hand)
-  end
-
-  result = calculate_winner(player_total, dealer_total)
-
+def update_scores(result, player_score, dealer_score)
   case result
   when 'player busted', 'dealer'
     dealer_score += 1
   when 'dealer busted', 'player'
     player_score += 1
   end
-
-  show_results(player_hand, player_total, dealer_hand, dealer_total, result)
-  prompt "Player: #{player_score}"
-  prompt "Dealer: #{dealer_score}\n\n"
-
-  if dealer_score == 5
-    prompt "The dealer is the grand winner!"
-    break
-  elsif player_score == 5
-    prompt "You are the grand winner!"
-    break
-  end
-
-  play_again? ? next : break
+  return player_score, dealer_score
 end
 
-prompt "Thank you for playing 21!"
+def show_final_results(player_score, dealer_score)
+  if dealer_score == 5
+    prompt "The dealer is the grand winner!"
+  elsif player_score == 5
+    prompt "You are the grand winner!"
+  end
+end
+
+def display_welcome_message
+  system 'clear'
+  prompt "Welcome to to 21!"
+  prompt "Hit to get another card, and stay to keep the cards you have."
+  prompt "Whoever is closest to 21 wins, but you lose if you go over."
+  prompt "Number cards are worth their number, face cards are 10, " \
+         "and aces are 1 or 11."
+  prompt "Whoever wins 5 rounds first is the overall winner."
+  prompt "Press enter to continue."
+  gets.chomp
+end
+
+display_welcome_message
+
+loop do
+  dealer_score = 0
+  player_score = 0
+  still_playing = true
+
+  loop do
+    deck = initialize_deck
+
+    player_hand, dealer_hand = deal_hands!(deck)
+
+    player_total = calculate_total(player_hand)
+    dealer_total = calculate_total(dealer_hand)
+
+    player_turn!(player_hand, player_total, deck, dealer_hand)
+    player_total = calculate_total(player_hand)
+
+    unless busted?(player_total)
+      dealer_turn!(dealer_hand, dealer_total, deck)
+      dealer_total = calculate_total(dealer_hand)
+    end
+
+    result = calculate_winner(player_total, dealer_total)
+    player_score, dealer_score = \
+      update_scores(result, player_score, dealer_score)
+
+    show_results(player_hand, player_total, dealer_hand, dealer_total, result)
+    # Adding these prompts to show_results would result in a 7 parameter method
+    # or would necessitate having multiple extra calls to calculate_total
+    prompt "Player: #{player_score}"
+    prompt "Dealer: #{dealer_score}\n\n"
+
+    if player_score == 5 || dealer_score == 5
+      show_final_results(player_score, dealer_score)
+      break
+    end
+
+    still_playing = play_again?
+    break unless still_playing
+  end
+
+  prompt "Thank you for playing 21!"
+  break unless still_playing
+  break unless play_another_five?
+end
