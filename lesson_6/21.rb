@@ -1,5 +1,8 @@
 require 'colorize'
 
+MAX_VALUE = 21
+DEALER_STAY = 17
+
 CARD_STRINGS = { '2' => 'a ' + '2'.red,
                  '3' => 'a ' + '3'.red,
                  '4' => 'a ' + '4'.red,
@@ -50,7 +53,7 @@ end
 def calculate_aces(aces, total)
   return 0 if aces.empty?
 
-  aces_total = if total + 11 + aces.length - 1 > 21
+  aces_total = if total + 11 + aces.length - 1 > MAX_VALUE
                  1
                else
                  11
@@ -74,32 +77,40 @@ def hit_or_stay
   end
 end
 
-def player_turn!(player_hand, deck, dealer_hand)
+def player_turn!(player_hand, player_total, deck, dealer_hand)
   loop do
     system 'clear'
     prompt "The dealer has #{CARD_STRINGS[dealer_hand[0]]}."
-    show_player_hand(player_hand)
+    show_player_hand(player_hand, player_total)
 
     break if hit_or_stay == 's'
     player_hand << deal_card!(deck)
 
-    if busted?(player_hand)
+    player_total = calculate_total(player_hand)
+
+    if busted?(player_total)
       system 'clear'
-      show_player_hand(player_hand)
+      show_player_hand(player_hand, player_total)
+      sleep 2
       break
     end
   end
 end
 
-def dealer_turn!(dealer_hand, deck)
+def dealer_turn!(dealer_hand, dealer_total, deck)
   loop do
-    break if calculate_total(dealer_hand) > 17 || busted?(dealer_hand)
+    show_dealer_hand(dealer_hand, dealer_total)
+    sleep 2
+    break if dealer_total >= DEALER_STAY || busted?(dealer_total)
+    prompt "The dealer hits!"
+    sleep 1
     dealer_hand << deal_card!(deck)
+    dealer_total = calculate_total(dealer_hand)
   end
 end
 
 def busted?(hand)
-  calculate_total(hand) > 21
+  hand > MAX_VALUE
 end
 
 def stringify_cards(hand)
@@ -112,62 +123,94 @@ def stringify_cards(hand)
   words.join(', ')
 end
 
-def show_player_hand(player_hand)
+def show_player_hand(player_hand, player_total)
   prompt "You have #{stringify_cards(player_hand)}, for a total of " + \
-         calculate_total(player_hand).to_s.green + '.'
+         player_total.to_s.green + '.'
 end
 
-def show_dealer_hand(dealer_hand)
-  prompt "The dealer had #{stringify_cards(dealer_hand)}, for a total of " + \
-         calculate_total(dealer_hand).to_s.green + '.'
+def show_dealer_hand(dealer_hand, dealer_total)
+  prompt "The dealer has #{stringify_cards(dealer_hand)}, for a total of " + \
+         dealer_total.to_s.green + '.'
 end
 
-def display_results(player_hand, dealer_hand)
-  case calculate_winner(player_hand, dealer_hand)
+# Rubocop complained that this method is too long, but it is only doing one
+# thing and I see no way to shorten it.
+def show_results(player_hand, player_total, dealer_hand, dealer_total, result)
+  system 'clear'
+  puts "==============" * 5
+  show_player_hand(player_hand, player_total)
+  show_dealer_hand(dealer_hand, dealer_total)
+
+  case result
+  when 'player busted'
+    prompt 'You busted. The dealer won!'
+  when 'dealer busted'
+    prompt 'The dealer busted. You won!'
   when 'player'
-    show_dealer_hand(dealer_hand)
     prompt 'You won!'
   when 'dealer'
-    show_dealer_hand(dealer_hand)
     prompt 'The dealer won!'
   when 'tie'
-    show_dealer_hand(dealer_hand)
     prompt "It's a tie!"
   end
+
+  puts "==============" * 5 + "\n\n"
 end
 
-def calculate_winner(player_hand, dealer_hand)
-  if calculate_total(player_hand) > calculate_total(dealer_hand)
+def calculate_winner(player_total, dealer_total)
+  if player_total > MAX_VALUE
+    'player busted'
+  elsif dealer_total > MAX_VALUE
+    'dealer busted'
+  elsif player_total > dealer_total
     'player'
-  elsif calculate_total(dealer_hand) > calculate_total(player_hand)
+  elsif dealer_total > player_total
     'dealer'
   else
     'tie'
   end
 end
 
+dealer_score = 0
+player_score = 0
+
 loop do
   deck = initialize_deck
 
   player_hand, dealer_hand = deal_hands!(deck)
 
-  player_turn!(player_hand, deck, dealer_hand)
-  if busted?(player_hand)
-    prompt "You busted."
-    show_dealer_hand(dealer_hand)
-    prompt "The dealer wins!"
-    play_again? ? next : break
+  player_total = calculate_total(player_hand)
+  dealer_total = calculate_total(dealer_hand)
+
+  player_turn!(player_hand, player_total, deck, dealer_hand)
+  player_total = calculate_total(player_hand)
+
+  unless busted?(player_total)
+    dealer_turn!(dealer_hand, dealer_total, deck)
+    dealer_total = calculate_total(dealer_hand)
   end
 
-  dealer_turn!(dealer_hand, deck)
-  if busted?(dealer_hand)
-    show_dealer_hand(dealer_hand)
-    prompt "The dealer busted."
-    prompt "You win!"
-    play_again? ? next : break
+  result = calculate_winner(player_total, dealer_total)
+
+  case result
+  when 'player busted', 'dealer'
+    dealer_score += 1
+  when 'dealer busted', 'player'
+    player_score += 1
   end
 
-  display_results(player_hand, dealer_hand)
+  show_results(player_hand, player_total, dealer_hand, dealer_total, result)
+  prompt "Player: #{player_score}"
+  prompt "Dealer: #{dealer_score}\n\n"
+
+  if dealer_score == 5
+    prompt "The dealer is the grand winner!"
+    break
+  elsif player_score == 5
+    prompt "You are the grand winner!"
+    break
+  end
+
   play_again? ? next : break
 end
 
